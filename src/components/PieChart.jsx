@@ -1,4 +1,3 @@
-// PieChart.jsx
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 
 const COLORS = ["#8b5cf6", "#6366f1", "#22c55e", "#f59e0b"];

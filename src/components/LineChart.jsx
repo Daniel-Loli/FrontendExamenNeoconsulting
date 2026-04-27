@@ -1,5 +1,3 @@
-// LineChart.jsx
-
 import {
   LineChart,
   Line,
