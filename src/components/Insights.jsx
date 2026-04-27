@@ -1,11 +1,19 @@
-export default function Insights({ text }) {
-  return (
-    <div className="bg-[#121826] p-5 rounded-2xl text-white">
-      <h3 className="text-purple-400 mb-3">Insights IA</h3>
+export default function Insights({ data }) {
+  if (!data) return null;
 
-      <p className="text-sm leading-relaxed whitespace-pre-line">
-        {text || "No hay insights disponibles"}
-      </p>
+  const lines = data.split("\n").slice(0, 4);
+
+  return (
+    <div className="bg-[#1a2235] border border-purple-500 p-4 rounded-xl">
+      <h3 className="text-purple-400 mb-2 font-semibold">
+        Insights IA
+      </h3>
+
+      {lines.map((l, i) => (
+        <p key={i} className="text-sm text-gray-300">
+          • {l}
+        </p>
+      ))}
     </div>
   );
 }

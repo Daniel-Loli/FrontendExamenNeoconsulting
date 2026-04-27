@@ -1,104 +1,163 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   getKPIs,
   getSales,
   getProducts,
-  getInsights
+  getFunnel,
+  getInsights,
+  getInventory,
+  getLogistics,
+  getCustomers
 } from "../services/api";
 
+import Header from "../components/Header";
 import KPI from "../components/KPI";
-import SalesChart from "../components/LineChart";
-import CategoryChart from "../components/PieChart";
+import SalesChart from "../components/SalesChart";
+import CategoryChart from "../components/CategoryChart";
+import TopProducts from "../components/TopProducts";
+import Funnel from "../components/Funnel";
 import Insights from "../components/Insights";
+import CustomBarChart from "../components/BarChart";
 
 export default function Dashboard() {
-  const [kpis, setKpis] = useState(null);
-  const [sales, setSales] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [insight, setInsight] = useState("");
+  const [filters, setFilters] = useState({});
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // ================= DATA =================
+  const { data: kpis } = useQuery({
+    queryKey: ["kpis"],
+    queryFn: async () => (await getKPIs()).data
+  });
 
-  const loadData = async () => {
-    try {
-      const [kpiRes, salesRes, prodRes, insightRes] =
-        await Promise.all([
-          getKPIs(),
-          getSales(),
-          getProducts(),
-          getInsights()
-        ]);
+  const { data: sales } = useQuery({
+    queryKey: ["sales"],
+    queryFn: async () => (await getSales()).data
+  });
 
-      // ✅ KPIs
-      if (kpiRes.data?.length > 0) {
-        setKpis(kpiRes.data[0]);
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => (await getProducts()).data
+  });
+
+  const { data: funnel } = useQuery({
+    queryKey: ["funnel"],
+    queryFn: async () => (await getFunnel()).data
+  });
+
+  const { data: insights } = useQuery({
+    queryKey: ["insights"],
+    queryFn: async () => (await getInsights()).data
+  });
+
+  const { data: inventory } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: async () => (await getInventory()).data
+  });
+
+  const { data: logistics } = useQuery({
+    queryKey: ["logistics"],
+    queryFn: async () => (await getLogistics()).data
+  });
+
+  const { data: customers } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => (await getCustomers()).data
+  });
+
+  // ================= FILTROS =================
+  const applyFilters = (data, type) => {
+    if (!data) return [];
+
+    return data.filter(item => {
+      if (filters.date && type === "sales") {
+        const raw = item.fecha?.value || item.fecha;
+        if (!raw?.includes(filters.date)) return false;
       }
 
-      // ✅ SALES (ya corregido backend)
-      setSales(salesRes.data || []);
-
-      // ✅ PRODUCTS
-      setProducts(prodRes.data?.slice(0, 5) || []);
-
-      // ✅ INSIGHTS (seguro)
-      if (insightRes.data?.insight) {
-        setInsight(insightRes.data.insight);
-      } else {
-        setInsight("No se pudieron generar insights");
+      if (filters.category && item.categoria) {
+        if (item.categoria !== filters.category) return false;
       }
 
-    } catch (error) {
-      console.error("Error cargando dashboard:", error);
-    }
+      if (filters.channel && item.fuente_trafico) {
+        if (item.fuente_trafico !== filters.channel) return false;
+      }
+
+      return true;
+    });
   };
 
+  const salesFiltered = applyFilters(sales, "sales");
+  const productsFiltered = applyFilters(products, "products");
+  const funnelFiltered = applyFilters(funnel, "funnel");
+
+  // dinámicos
+  const categories = [...new Set(products?.map(p => p.categoria))];
+  const channels = [...new Set(funnel?.map(f => f.fuente_trafico))];
+
+  const k = kpis?.[0];
+
   return (
-    <div className="p-6 text-white">
+    <div className="p-4 space-y-4 text-white">
 
-      <h1 className="text-2xl font-bold mb-6">
-        Resumen Ejecutivo
-      </h1>
+      <Header
+        filters={filters}
+        setFilters={setFilters}
+        categories={categories}
+        channels={channels}
+      />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-5 gap-4 mb-6">
-        <KPI title="Ingresos" value={kpis?.ingresos_totales} />
-        <KPI title="Órdenes" value={kpis?.ordenes_totales} />
-        <KPI title="Clientes" value={kpis?.clientes_totales} />
-        <KPI title="Ticket" value={kpis?.ticket_promedio} />
+      {/* ================= KPIs ================= */}
+      <div className="grid grid-cols-5 gap-3">
+        <KPI title="Ingresos" value={k?.ingresos_totales} />
+        <KPI title="Órdenes" value={k?.ordenes_totales} />
+        <KPI title="Clientes" value={k?.clientes_totales} />
+        <KPI title="Ticket" value={k?.ticket_promedio} />
+        <KPI title="Cancelación" value={k?.tasa_cancelacion} />
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      {/* ================= IA STORY ================= */}
+      <Insights data={insights?.insight} />
 
-        {/* CHART */}
+      {/* ================= MAIN ================= */}
+      <div className="grid grid-cols-3 gap-4">
+
         <div className="col-span-2">
-          <SalesChart data={sales} />
+          <SalesChart data={salesFiltered} />
         </div>
 
-        {/* PIE */}
-        <CategoryChart data={products} />
+        <CategoryChart data={productsFiltered} />
 
-        {/* TOP PRODUCTS */}
-        <div className="bg-[#121826] p-5 rounded-2xl">
-          <h3 className="mb-4">Top Productos</h3>
+      </div>
 
-          {products.map((p, i) => (
-            <div key={i} className="flex justify-between text-sm mb-2">
-              <span>{p.product_id}</span>
-              <span className="text-purple-400">
-                ${p.ingresos?.toFixed(2)}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* ================= MID ================= */}
+      <div className="grid grid-cols-3 gap-4">
 
-        {/* INSIGHTS */}
-        <div className="col-span-2">
-          <Insights text={insight || "Cargando insights..."} />
+        <TopProducts data={productsFiltered} />
+
+        <Funnel data={funnelFiltered} />
+
+        <div className="bg-[#121826] p-4 rounded-xl text-sm">
+          <h3 className="text-purple-400 mb-2">
+            Performance Logístico
+          </h3>
+
+          <p>Entrega: {logistics?.tiempo_entrega?.toFixed(2)} días</p>
+          <p>Devolución: {(logistics?.tasa_devolucion * 100).toFixed(1)}%</p>
+          <p>Cancelación: {(logistics?.tasa_cancelacion * 100).toFixed(1)}%</p>
         </div>
 
       </div>
+
+      {/* ================= BOTTOM ================= */}
+      <div className="col-span-2">
+        <CustomBarChart
+          data={customers?.slice(-10)}
+          xKey="cohorte_mes"
+          yKey="usuarios"
+          title="Cohorte de Clientes"
+        />
+      </div>
+
     </div>
   );
 }
