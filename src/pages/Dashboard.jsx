@@ -23,17 +23,31 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [kpiRes, salesRes, prodRes, insightRes] = await Promise.all([
-        getKPIs(),
-        getSales(),
-        getProducts(),
-        getInsights()
-      ]);
+      const [kpiRes, salesRes, prodRes, insightRes] =
+        await Promise.all([
+          getKPIs(),
+          getSales(),
+          getProducts(),
+          getInsights()
+        ]);
 
-      setKpis(kpiRes.data[0] || {});
+      // ✅ KPIs
+      if (kpiRes.data?.length > 0) {
+        setKpis(kpiRes.data[0]);
+      }
+
+      // ✅ SALES (ya corregido backend)
       setSales(salesRes.data || []);
-      setProducts((prodRes.data || []).slice(0, 5));
-      setInsight(insightRes.data?.insight || "Sin insights");
+
+      // ✅ PRODUCTS
+      setProducts(prodRes.data?.slice(0, 5) || []);
+
+      // ✅ INSIGHTS (seguro)
+      if (insightRes.data?.insight) {
+        setInsight(insightRes.data.insight);
+      } else {
+        setInsight("No se pudieron generar insights");
+      }
 
     } catch (error) {
       console.error("Error cargando dashboard:", error);
@@ -53,19 +67,19 @@ export default function Dashboard() {
         <KPI title="Órdenes" value={kpis?.ordenes_totales} />
         <KPI title="Clientes" value={kpis?.clientes_totales} />
         <KPI title="Ticket" value={kpis?.ticket_promedio} />
-        <KPI title="Cancelación" value={kpis?.tasa_cancelacion} />
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-3 gap-6">
 
+        {/* CHART */}
         <div className="col-span-2">
           <SalesChart data={sales} />
         </div>
 
+        {/* PIE */}
         <CategoryChart data={products} />
 
-        {/* Top productos */}
+        {/* TOP PRODUCTS */}
         <div className="bg-[#121826] p-5 rounded-2xl">
           <h3 className="mb-4">Top Productos</h3>
 
@@ -79,9 +93,9 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Insights */}
+        {/* INSIGHTS */}
         <div className="col-span-2">
-          <Insights text={insight} />
+          <Insights text={insight || "Cargando insights..."} />
         </div>
 
       </div>

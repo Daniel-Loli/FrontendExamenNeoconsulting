@@ -15,6 +15,7 @@ export default function SalesChart({ data }) {
         <LineChart data={data}>
           <XAxis dataKey="fecha" stroke="#aaa" />
           <Tooltip />
+
           <Line
             type="monotone"
             dataKey="ingresos"
